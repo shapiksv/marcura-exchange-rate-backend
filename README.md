@@ -2,9 +2,11 @@
 
 Backend implementation for the Marcura Full Stack Developer Technical Assessment.
 
-## Phase 0 Status: ✅ Complete
+## Phase 0, 1, 2, 3 Status: ✅ Complete
 
-### What's Been Completed
+### Completed Features
+
+**Phase 0 — Infrastructure:**
 
 - ✅ Spring Boot Maven project structure
 - ✅ All required dependencies added (Web, JPA, PostgreSQL, Liquibase, OpenAPI, Scheduler, ShedLock, Spring AI, Testcontainers)
@@ -97,11 +99,11 @@ src/main/java/com/example/marcuraexchangeratebackend/
 │   ├── domain/        # Domain logic
 │   └── persistence/   # Repositories
 ├── rate/              # Rate collection feature
-│   ├── application/
-│   ├── domain/
-│   ├── persistence/
+│   ├── application/   # Rate collection service
+│   ├── domain/        # Rate snapshot model
+│   ├── persistence/   # Repositories
 │   ├── provider/      # External API clients (Fixer)
-│   └── scheduler/     # Scheduled tasks
+│   └── scheduler/     # Scheduled tasks (daily collection)
 ├── analytics/         # Usage analytics feature
 │   ├── api/
 │   ├── application/
@@ -114,13 +116,61 @@ src/main/java/com/example/marcuraexchangeratebackend/
     └── error/         # Exception handling
 ```
 
+## Scheduled Rate Collection
+
+The system automatically collects exchange rates from Fixer.io once per day.
+
+**Schedule:**
+- Time: **00:05 UTC** daily
+- Configurable via `scheduler.rate-collection.cron` and `scheduler.rate-collection.zone`
+- Timezone is explicit (UTC) to avoid server timezone dependency
+
+**Multi-Instance Safety:**
+
+When multiple application instances are running (e.g., in Kubernetes or behind a load balancer):
+
+1. **ShedLock** (database-backed distributed lock)
+   - Prevents duplicate scheduler execution across instances
+   - Uses `shedlock` PostgreSQL table
+   - Uses database time (not application server time) to avoid clock skew issues
+   - Lock duration: `lockAtMostFor=10m` (protects against crashed instances)
+   - Lock minimum: `lockAtLeastFor=30s` (prevents rapid re-execution)
+
+2. **PostgreSQL ON CONFLICT** (database-level protection)
+   - Atomic upsert ensures no duplicate rates if lock fails
+   - Unique constraint: `(rate_date, base_currency, currency_code)`
+   - Provides data integrity even under concurrent writes
+
+**Why Both Layers?**
+- ShedLock reduces unnecessary load (only one instance fetches from Fixer)
+- PostgreSQL constraint ensures database correctness regardless of lock behavior
+- Defense in depth: if ShedLock fails, data remains consistent
+
+**Transaction Boundary:**
+```
+Scheduler (no @Transactional)
+  → RateCollectionService
+     → HTTP fetch from Fixer.io (outside transaction)
+     → Validation/normalization
+     → RatePersistenceService (@Transactional)
+        → PostgreSQL atomic upsert
+```
+
+HTTP requests execute **before** the database transaction to avoid holding connections during external calls.
+
+**Error Handling:**
+- Failures are logged with full context
+- Exceptions propagate (ShedLock automatically releases lock)
+- Next scheduled execution runs normally
+- No automatic retry (waits for next daily schedule)
+
 ## Next Steps
 
-Phase 1 will implement:
-- Database schema (exchange_rate, currency_usage_daily, shedlock tables)
-- JPA entities and repositories
-- Spread policy and exchange calculation domain logic
-- Unit tests for calculation formula
+Phase 4 will implement:
+- Exchange calculator REST API (`/api/v1/exchange`)
+- Request validation and rate date resolution
+- Atomic concurrent usage tracking
+- Controller tests
 
 ## AI Workflow
 
