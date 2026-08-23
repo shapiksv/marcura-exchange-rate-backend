@@ -21,13 +21,11 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.xml
     enabled: true
 
-# Spring AI configuration will be added in Phase 6
-# ai:
-#   ollama:
-#     base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-#     chat:
-#       options:
-#         model: ${OLLAMA_MODEL:llama3.2}
+  ai:
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        model: ${OLLAMA_MODEL:llama3.2}
 
 # Fixer.io configuration
 fixer:
@@ -43,6 +41,16 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     enabled: true
+
+# Actuator configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
 
 # Scheduler configuration
 scheduler:

@@ -10,6 +10,13 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 import javax.sql.DataSource;
 
+/**
+ * Scheduler and distributed lock configuration.
+ * ShedLock ensures that scheduled tasks run only once across multiple application instances.
+ * The lock table (shedlock) will be created by Liquibase migration in Phase 1.
+ * Note: LockProvider bean is created at startup, but the shedlock table is only accessed
+ * when a method annotated with @SchedulerLock is executed. No scheduled methods exist yet.
+ */
 @Configuration
 @EnableScheduling
 @EnableSchedulerLock(defaultLockAtMostFor = "10m")

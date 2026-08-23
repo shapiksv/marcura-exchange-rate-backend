@@ -69,7 +69,7 @@ mvn spring-boot:run
 ```
 
 5. Verify the application is running:
-- Health check: http://localhost:8080/api/v1/health
+- Health check: http://localhost:8080/actuator/health
 - Swagger UI: http://localhost:8080/swagger-ui.html
 - API docs: http://localhost:8080/api-docs
 
@@ -77,13 +77,15 @@ mvn spring-boot:run
 
 - **Java**: 17+
 - **Framework**: Spring Boot 4.1.1
+- **Spring Framework**: 7.0.9
 - **Build Tool**: Maven
 - **Database**: PostgreSQL
 - **Migration**: Liquibase
-- **API Documentation**: Springdoc OpenAPI
-- **Scheduler**: Spring Scheduler + ShedLock (JDBC)
-- **AI Integration**: Spring AI with Ollama
-- **Testing**: JUnit 5, Mockito, Testcontainers
+- **API Documentation**: Springdoc OpenAPI 2.8.3
+- **Scheduler**: Spring Scheduler + ShedLock 5.16.0 (JDBC)
+- **AI Integration**: Spring AI 2.0.1 with Ollama
+- **Health & Monitoring**: Spring Boot Actuator
+- **Testing**: JUnit 5, Mockito, Testcontainers 1.20.4
 
 ## Project Structure
 
