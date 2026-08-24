@@ -101,4 +101,68 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRateEntity
             @Param("baseCurrency") String baseCurrency,
             @Param("currencyCode") String currencyCode
     );
+
+    /**
+     * Find a common snapshot (rate_date, base_currency) that contains both specified currencies
+     * for a specific date.
+     * <p>
+     * Returns the snapshot with deterministic ordering: rate_date DESC, base_currency ASC.
+     * <p>
+     * This ensures that if multiple base snapshots exist for the same date, the selection is deterministic.
+     *
+     * @param rateDate the specific date to search
+     * @param fromCurrency first required currency
+     * @param toCurrency second required currency
+     * @return Optional containing [rate_date, base_currency] or empty if no common snapshot exists
+     */
+    @Query(value = """
+            SELECT e1.rate_date, e1.base_currency
+            FROM exchange_rate e1
+            WHERE e1.rate_date = :rateDate
+              AND e1.currency_code = :fromCurrency
+              AND EXISTS (
+                  SELECT 1 FROM exchange_rate e2
+                  WHERE e2.rate_date = e1.rate_date
+                    AND e2.base_currency = e1.base_currency
+                    AND e2.currency_code = :toCurrency
+              )
+            ORDER BY e1.base_currency ASC
+            LIMIT 1
+            """, nativeQuery = true)
+    Optional<Object[]> findCommonSnapshotForDate(
+            @Param("rateDate") LocalDate rateDate,
+            @Param("fromCurrency") String fromCurrency,
+            @Param("toCurrency") String toCurrency
+    );
+
+    /**
+     * Find the latest common snapshot (rate_date, base_currency) that contains both specified currencies.
+     * <p>
+     * Returns the snapshot with deterministic ordering: rate_date DESC, base_currency ASC.
+     * <p>
+     * This means:
+     * - Use the most recent date that has both currencies
+     * - If multiple base currencies exist for that date, use the alphabetically first base
+     *
+     * @param fromCurrency first required currency
+     * @param toCurrency second required currency
+     * @return Optional containing [rate_date, base_currency] or empty if no common snapshot exists
+     */
+    @Query(value = """
+            SELECT e1.rate_date, e1.base_currency
+            FROM exchange_rate e1
+            WHERE e1.currency_code = :fromCurrency
+              AND EXISTS (
+                  SELECT 1 FROM exchange_rate e2
+                  WHERE e2.rate_date = e1.rate_date
+                    AND e2.base_currency = e1.base_currency
+                    AND e2.currency_code = :toCurrency
+              )
+            ORDER BY e1.rate_date DESC, e1.base_currency ASC
+            LIMIT 1
+            """, nativeQuery = true)
+    Optional<Object[]> findLatestCommonSnapshot(
+            @Param("fromCurrency") String fromCurrency,
+            @Param("toCurrency") String toCurrency
+    );
 }
