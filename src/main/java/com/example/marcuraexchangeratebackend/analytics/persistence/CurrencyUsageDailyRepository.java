@@ -64,4 +64,27 @@ public interface CurrencyUsageDailyRepository extends JpaRepository<CurrencyUsag
      */
     @Query("SELECT u FROM CurrencyUsageDailyEntity u ORDER BY u.queryCount DESC")
     List<CurrencyUsageDailyEntity> findAllOrderByQueryCountDesc();
+
+    /**
+     * Get aggregated usage summary per currency for analytics.
+     * Returns: currency_code, total_count, max_last_queried_at
+     * Ordered by total_count DESC, currency_code ASC for deterministic results.
+     */
+    @Query(value = """
+            SELECT
+                currency_code,
+                SUM(query_count) as total_count,
+                MAX(last_queried_at) as last_queried
+            FROM currency_usage_daily
+            GROUP BY currency_code
+            ORDER BY total_count DESC, currency_code ASC
+            """, nativeQuery = true)
+    List<Object[]> findUsageSummaryGroupedByCurrency();
+
+    /**
+     * Get all daily usage records ordered by date and currency.
+     * Returns all rows ordered for analytics dashboard.
+     */
+    @Query("SELECT u FROM CurrencyUsageDailyEntity u ORDER BY u.queryDate ASC, u.currencyCode ASC")
+    List<CurrencyUsageDailyEntity> findAllOrderByDateAndCurrency();
 }

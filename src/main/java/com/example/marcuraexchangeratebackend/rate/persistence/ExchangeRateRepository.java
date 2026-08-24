@@ -165,4 +165,97 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRateEntity
             @Param("fromCurrency") String fromCurrency,
             @Param("toCurrency") String toCurrency
     );
+
+    /**
+     * Find all common snapshots (rate_date, base_currency) within a date range that contain both specified currencies.
+     * <p>
+     * Returns snapshots with deterministic ordering: rate_date ASC, base_currency ASC.
+     * <p>
+     * For dates with multiple base currencies, selects the alphabetically first base.
+     * This ensures consistency with calculator snapshot resolution.
+     *
+     * @param fromCurrency first required currency
+     * @param toCurrency second required currency
+     * @param startDate inclusive start of date range
+     * @param endDate inclusive end of date range
+     * @return List of [rate_date, base_currency] arrays, one per unique date
+     */
+    @Query(value = """
+            SELECT DISTINCT ON (e1.rate_date) e1.rate_date, e1.base_currency
+            FROM exchange_rate e1
+            WHERE e1.currency_code = :fromCurrency
+              AND e1.rate_date BETWEEN :startDate AND :endDate
+              AND EXISTS (
+                  SELECT 1 FROM exchange_rate e2
+                  WHERE e2.rate_date = e1.rate_date
+                    AND e2.base_currency = e1.base_currency
+                    AND e2.currency_code = :toCurrency
+              )
+            ORDER BY e1.rate_date ASC, e1.base_currency ASC
+            """, nativeQuery = true)
+    List<Object[]> findCommonSnapshotsInDateRange(
+            @Param("fromCurrency") String fromCurrency,
+            @Param("toCurrency") String toCurrency,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    /**
+     * Find all historical rate data for a currency pair within a date range in a SINGLE query.
+     * <p>
+     * Eliminates N+1 query pattern by fetching all needed data in one database call.
+     * <p>
+     * For each available date in the range:
+     * 1. Selects the alphabetically first base_currency that contains both requested currencies
+     * 2. Fetches both currency rates from that snapshot
+     * <p>
+     * Returns results ordered by rate_date ASC.
+     * <p>
+     * Query uses DISTINCT ON to ensure one snapshot per date, with deterministic base selection.
+     *
+     * @param fromCurrency first required currency
+     * @param toCurrency second required currency
+     * @param startDate inclusive start of date range
+     * @param endDate inclusive end of date range
+     * @return List of HistoricalRateProjection containing [rate_date, base_currency, from_rate, to_rate]
+     */
+    @Query(value = """
+            WITH selected_snapshots AS (
+                SELECT DISTINCT ON (f.rate_date)
+                       f.rate_date,
+                       f.base_currency
+                FROM exchange_rate f
+                WHERE f.currency_code = :fromCurrency
+                  AND f.rate_date BETWEEN :fromDate AND :toDate
+                  AND EXISTS (
+                      SELECT 1 FROM exchange_rate t
+                      WHERE t.rate_date = f.rate_date
+                        AND t.base_currency = f.base_currency
+                        AND t.currency_code = :toCurrency
+                  )
+                ORDER BY f.rate_date ASC,
+                         f.base_currency ASC
+            )
+            SELECT
+                s.rate_date AS rateDate,
+                s.base_currency AS baseCurrency,
+                fr.rate_value AS fromRate,
+                tr.rate_value AS toRate
+            FROM selected_snapshots s
+            JOIN exchange_rate fr
+              ON fr.rate_date = s.rate_date
+             AND fr.base_currency = s.base_currency
+             AND fr.currency_code = :fromCurrency
+            JOIN exchange_rate tr
+              ON tr.rate_date = s.rate_date
+             AND tr.base_currency = s.base_currency
+             AND tr.currency_code = :toCurrency
+            ORDER BY s.rate_date ASC
+            """, nativeQuery = true)
+    List<HistoricalRateProjection> findHistoricalRatesInSingleQuery(
+            @Param("fromCurrency") String fromCurrency,
+            @Param("toCurrency") String toCurrency,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
 }
