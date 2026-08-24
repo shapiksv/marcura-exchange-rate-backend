@@ -1,5 +1,7 @@
 package com.example.marcuraexchangeratebackend.exchange.domain;
 
+import org.springframework.stereotype.Component;
+
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
@@ -13,6 +15,7 @@ import java.util.Objects;
  *
  * Uses BigDecimal with explicit precision and rounding to avoid premature rounding.
  */
+@Component
 public class ExchangeRateCalculator {
 
     // MathContext for division operations: 34 digits precision with HALF_UP rounding

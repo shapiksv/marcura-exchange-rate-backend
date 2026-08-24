@@ -113,10 +113,10 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRateEntity
      * @param rateDate the specific date to search
      * @param fromCurrency first required currency
      * @param toCurrency second required currency
-     * @return Optional containing [rate_date, base_currency] or empty if no common snapshot exists
+     * @return Optional containing projection with rate_date and base_currency, or empty if no common snapshot exists
      */
     @Query(value = """
-            SELECT e1.rate_date, e1.base_currency
+            SELECT e1.rate_date AS rateDate, e1.base_currency AS baseCurrency
             FROM exchange_rate e1
             WHERE e1.rate_date = :rateDate
               AND e1.currency_code = :fromCurrency
@@ -129,7 +129,7 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRateEntity
             ORDER BY e1.base_currency ASC
             LIMIT 1
             """, nativeQuery = true)
-    Optional<Object[]> findCommonSnapshotForDate(
+    Optional<CommonSnapshotProjection> findCommonSnapshotForDate(
             @Param("rateDate") LocalDate rateDate,
             @Param("fromCurrency") String fromCurrency,
             @Param("toCurrency") String toCurrency
@@ -146,10 +146,10 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRateEntity
      *
      * @param fromCurrency first required currency
      * @param toCurrency second required currency
-     * @return Optional containing [rate_date, base_currency] or empty if no common snapshot exists
+     * @return Optional containing projection with rate_date and base_currency, or empty if no common snapshot exists
      */
     @Query(value = """
-            SELECT e1.rate_date, e1.base_currency
+            SELECT e1.rate_date AS rateDate, e1.base_currency AS baseCurrency
             FROM exchange_rate e1
             WHERE e1.currency_code = :fromCurrency
               AND EXISTS (
@@ -161,43 +161,9 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRateEntity
             ORDER BY e1.rate_date DESC, e1.base_currency ASC
             LIMIT 1
             """, nativeQuery = true)
-    Optional<Object[]> findLatestCommonSnapshot(
+    Optional<CommonSnapshotProjection> findLatestCommonSnapshot(
             @Param("fromCurrency") String fromCurrency,
             @Param("toCurrency") String toCurrency
-    );
-
-    /**
-     * Find all common snapshots (rate_date, base_currency) within a date range that contain both specified currencies.
-     * <p>
-     * Returns snapshots with deterministic ordering: rate_date ASC, base_currency ASC.
-     * <p>
-     * For dates with multiple base currencies, selects the alphabetically first base.
-     * This ensures consistency with calculator snapshot resolution.
-     *
-     * @param fromCurrency first required currency
-     * @param toCurrency second required currency
-     * @param startDate inclusive start of date range
-     * @param endDate inclusive end of date range
-     * @return List of [rate_date, base_currency] arrays, one per unique date
-     */
-    @Query(value = """
-            SELECT DISTINCT ON (e1.rate_date) e1.rate_date, e1.base_currency
-            FROM exchange_rate e1
-            WHERE e1.currency_code = :fromCurrency
-              AND e1.rate_date BETWEEN :startDate AND :endDate
-              AND EXISTS (
-                  SELECT 1 FROM exchange_rate e2
-                  WHERE e2.rate_date = e1.rate_date
-                    AND e2.base_currency = e1.base_currency
-                    AND e2.currency_code = :toCurrency
-              )
-            ORDER BY e1.rate_date ASC, e1.base_currency ASC
-            """, nativeQuery = true)
-    List<Object[]> findCommonSnapshotsInDateRange(
-            @Param("fromCurrency") String fromCurrency,
-            @Param("toCurrency") String toCurrency,
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate
     );
 
     /**

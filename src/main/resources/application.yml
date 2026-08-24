@@ -18,8 +18,8 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   liquibase:
-    change-log: classpath:db/changelog/db.changelog-master.xml
     enabled: true
+    change-log: classpath:/db/changelog/db.changelog-master.yaml
 
   ai:
     ollama:

@@ -4,12 +4,12 @@ import com.example.marcuraexchangeratebackend.analytics.api.CurrencyUsageSummary
 import com.example.marcuraexchangeratebackend.analytics.api.DailyUsageEntry;
 import com.example.marcuraexchangeratebackend.analytics.persistence.CurrencyUsageDailyEntity;
 import com.example.marcuraexchangeratebackend.analytics.persistence.CurrencyUsageDailyRepository;
+import com.example.marcuraexchangeratebackend.analytics.persistence.CurrencyUsageSummaryProjection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigInteger;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -43,13 +43,13 @@ public class AnalyticsService {
     public List<CurrencyUsageSummary> getTopCurrencies() {
         log.debug("Fetching top currencies by usage");
 
-        List<Object[]> results = usageRepository.findUsageSummaryGroupedByCurrency();
+        List<CurrencyUsageSummaryProjection> results = usageRepository.findUsageSummaryGroupedByCurrency();
 
         return results.stream()
-                .map(row -> new CurrencyUsageSummary(
-                        (String) row[0],                        // currency_code
-                        convertToLong(row[1]),                  // total_count (may be BigInteger or Long)
-                        (OffsetDateTime) row[2]                 // last_queried
+                .map(projection -> new CurrencyUsageSummary(
+                        projection.getCurrencyCode(),
+                        projection.getTotalCount(),
+                        parseTimestamp(projection.getLastQueried())
                 ))
                 .toList();
     }
@@ -80,17 +80,12 @@ public class AnalyticsService {
     }
 
     /**
-     * Convert numeric aggregate result to Long.
-     * PostgreSQL SUM() may return BigInteger for large values.
+     * Parse ISO 8601 timestamp string from PostgreSQL to OffsetDateTime.
+     * <p>
+     * PostgreSQL TIMESTAMP WITH TIME ZONE values are returned as ISO 8601 strings
+     * when using CAST to VARCHAR in native queries.
      */
-    private Long convertToLong(Object value) {
-        if (value instanceof Long longValue) {
-            return longValue;
-        } else if (value instanceof BigInteger bigIntValue) {
-            return bigIntValue.longValue();
-        } else if (value instanceof Number numberValue) {
-            return numberValue.longValue();
-        }
-        return 0L;
+    private OffsetDateTime parseTimestamp(String timestamp) {
+        return OffsetDateTime.parse(timestamp);
     }
 }

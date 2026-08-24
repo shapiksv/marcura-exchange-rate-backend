@@ -3,6 +3,7 @@ package com.example.marcuraexchangeratebackend.exchange.application;
 import com.example.marcuraexchangeratebackend.analytics.persistence.CurrencyUsageDailyRepository;
 import com.example.marcuraexchangeratebackend.common.error.RateNotFoundException;
 import com.example.marcuraexchangeratebackend.exchange.domain.ExchangeRateCalculator;
+import com.example.marcuraexchangeratebackend.rate.persistence.CommonSnapshotProjection;
 import com.example.marcuraexchangeratebackend.rate.persistence.ExchangeRateEntity;
 import com.example.marcuraexchangeratebackend.rate.persistence.ExchangeRateRepository;
 import org.slf4j.Logger;
@@ -166,7 +167,7 @@ public class ExchangeApplicationService {
      * @throws RateNotFoundException if no suitable snapshot exists for the date
      */
     private RateSnapshot findSnapshotForDate(String from, String to, LocalDate date) {
-        Optional<Object[]> snapshotData = exchangeRateRepository
+        Optional<CommonSnapshotProjection> snapshotData = exchangeRateRepository
                 .findCommonSnapshotForDate(date, from, to);
 
         if (snapshotData.isEmpty()) {
@@ -184,9 +185,9 @@ public class ExchangeApplicationService {
             }
         }
 
-        Object[] data = snapshotData.get();
-        LocalDate rateDate = ((java.sql.Date) data[0]).toLocalDate();
-        String baseCurrency = (String) data[1];
+        CommonSnapshotProjection snapshot = snapshotData.get();
+        LocalDate rateDate = snapshot.getRateDate();
+        String baseCurrency = snapshot.getBaseCurrency();
 
         log.debug("Resolved snapshot for explicit date: date={}, base={}", rateDate, baseCurrency);
         return new RateSnapshot(rateDate, baseCurrency);
@@ -203,7 +204,7 @@ public class ExchangeApplicationService {
      * @throws RateNotFoundException if no suitable snapshot exists
      */
     private RateSnapshot findLatestSnapshot(String from, String to) {
-        Optional<Object[]> snapshotData = exchangeRateRepository
+        Optional<CommonSnapshotProjection> snapshotData = exchangeRateRepository
                 .findLatestCommonSnapshot(from, to);
 
         if (snapshotData.isEmpty()) {
@@ -220,9 +221,9 @@ public class ExchangeApplicationService {
             }
         }
 
-        Object[] data = snapshotData.get();
-        LocalDate rateDate = ((java.sql.Date) data[0]).toLocalDate();
-        String baseCurrency = (String) data[1];
+        CommonSnapshotProjection snapshot = snapshotData.get();
+        LocalDate rateDate = snapshot.getRateDate();
+        String baseCurrency = snapshot.getBaseCurrency();
 
         log.debug("Resolved latest common snapshot: date={}, base={}", rateDate, baseCurrency);
         return new RateSnapshot(rateDate, baseCurrency);

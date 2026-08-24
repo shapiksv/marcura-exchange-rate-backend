@@ -67,19 +67,21 @@ public interface CurrencyUsageDailyRepository extends JpaRepository<CurrencyUsag
 
     /**
      * Get aggregated usage summary per currency for analytics.
-     * Returns: currency_code, total_count, max_last_queried_at
+     * Returns projection with: currency_code, total_count, last_queried
      * Ordered by total_count DESC, currency_code ASC for deterministic results.
+     * <p>
+     * Note: Uses TO_CHAR to format timestamp as ISO 8601 string for projection compatibility.
      */
     @Query(value = """
             SELECT
-                currency_code,
-                SUM(query_count) as total_count,
-                MAX(last_queried_at) as last_queried
+                currency_code AS currencyCode,
+                SUM(query_count) AS totalCount,
+                TO_CHAR(MAX(last_queried_at), 'YYYY-MM-DD"T"HH24:MI:SS.USTZH:TZM') AS lastQueried
             FROM currency_usage_daily
             GROUP BY currency_code
-            ORDER BY total_count DESC, currency_code ASC
+            ORDER BY totalCount DESC, currency_code ASC
             """, nativeQuery = true)
-    List<Object[]> findUsageSummaryGroupedByCurrency();
+    List<CurrencyUsageSummaryProjection> findUsageSummaryGroupedByCurrency();
 
     /**
      * Get all daily usage records ordered by date and currency.

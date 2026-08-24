@@ -2,6 +2,7 @@ package com.example.marcuraexchangeratebackend.exchange.application;
 
 import com.example.marcuraexchangeratebackend.analytics.persistence.CurrencyUsageDailyRepository;
 import com.example.marcuraexchangeratebackend.common.error.RateNotFoundException;
+import com.example.marcuraexchangeratebackend.rate.persistence.CommonSnapshotProjection;
 import com.example.marcuraexchangeratebackend.rate.persistence.ExchangeRateEntity;
 import com.example.marcuraexchangeratebackend.rate.persistence.ExchangeRateRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,10 +61,7 @@ class ExchangeSnapshotResolutionTest {
 
         // Mock: Latest common snapshot query returns older date
         when(exchangeRateRepository.findLatestCommonSnapshot("USD", "PLN"))
-                .thenReturn(Optional.of(new Object[]{
-                        java.sql.Date.valueOf(olderCompleteDate),
-                        "EUR"
-                }));
+                .thenReturn(Optional.of(mockSnapshot(olderCompleteDate, "EUR")));
 
         // Mock: Rates exist for the older date
         when(exchangeRateRepository.findByRateDateAndBaseCurrencyAndCurrencyCode(olderCompleteDate, "EUR", "USD"))
@@ -103,10 +101,7 @@ class ExchangeSnapshotResolutionTest {
 
         // Mock: Common snapshot query returns first base alphabetically
         when(exchangeRateRepository.findCommonSnapshotForDate(date, "EUR", "GBP"))
-                .thenReturn(Optional.of(new Object[]{
-                        java.sql.Date.valueOf(date),
-                        "EUR"  // Alphabetically first base
-                }));
+                .thenReturn(Optional.of(mockSnapshot(date, "EUR")));
 
         when(exchangeRateRepository.findByRateDateAndBaseCurrencyAndCurrencyCode(date, "EUR", "EUR"))
                 .thenReturn(Optional.of(createRateEntity(date, "EUR", "EUR", BigDecimal.ONE)));
@@ -173,10 +168,7 @@ class ExchangeSnapshotResolutionTest {
 
         // Mock: Common snapshot with same currency (EUR, EUR) treated as (EUR, EUR)
         when(exchangeRateRepository.findCommonSnapshotForDate(date, "EUR", "EUR"))
-                .thenReturn(Optional.of(new Object[]{
-                        java.sql.Date.valueOf(date),
-                        "EUR"
-                }));
+                .thenReturn(Optional.of(mockSnapshot(date, "EUR")));
 
         when(exchangeRateRepository.findByRateDateAndBaseCurrencyAndCurrencyCode(date, "EUR", "EUR"))
                 .thenReturn(Optional.of(createRateEntity(date, "EUR", "EUR", BigDecimal.ONE)));
@@ -238,10 +230,7 @@ class ExchangeSnapshotResolutionTest {
 
         // Mock: Latest common snapshot returns first base alphabetically
         when(exchangeRateRepository.findLatestCommonSnapshot("USD", "GBP"))
-                .thenReturn(Optional.of(new Object[]{
-                        java.sql.Date.valueOf(latestDate),
-                        "EUR"  // Base selected deterministically
-                }));
+                .thenReturn(Optional.of(mockSnapshot(latestDate, "EUR")));
 
         when(exchangeRateRepository.findByRateDateAndBaseCurrencyAndCurrencyCode(latestDate, "EUR", "USD"))
                 .thenReturn(Optional.of(createRateEntity(latestDate, "EUR", "USD", new BigDecimal("1.0836"))));
@@ -264,5 +253,19 @@ class ExchangeSnapshotResolutionTest {
 
     private ExchangeRateEntity createRateEntity(LocalDate rateDate, String baseCurrency, String currencyCode, BigDecimal rateValue) {
         return new ExchangeRateEntity(rateDate, baseCurrency, currencyCode, rateValue);
+    }
+
+    private CommonSnapshotProjection mockSnapshot(LocalDate rateDate, String baseCurrency) {
+        return new CommonSnapshotProjection() {
+            @Override
+            public LocalDate getRateDate() {
+                return rateDate;
+            }
+
+            @Override
+            public String getBaseCurrency() {
+                return baseCurrency;
+            }
+        };
     }
 }

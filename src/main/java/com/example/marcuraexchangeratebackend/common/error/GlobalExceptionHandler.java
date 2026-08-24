@@ -15,8 +15,6 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -49,6 +47,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse("INVALID_REQUEST", ex.getMessage()));
+    }
+
+    /**
+     * Handle AiProviderException (HTTP 503).
+     * <p>
+     * Indicates the AI provider (Ollama/LLM) is unavailable or failed.
+     * Does NOT expose internal AI provider details or stack traces.
+     */
+    @ExceptionHandler(com.example.marcuraexchangeratebackend.insight.domain.AiProviderException.class)
+    public ResponseEntity<ErrorResponse> handleAiProviderException(
+            com.example.marcuraexchangeratebackend.insight.domain.AiProviderException ex
+    ) {
+        log.warn("AI provider unavailable: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ErrorResponse("AI_UNAVAILABLE", "AI provider is currently unavailable"));
     }
 
     /**

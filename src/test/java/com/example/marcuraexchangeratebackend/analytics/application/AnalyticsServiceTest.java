@@ -4,6 +4,7 @@ import com.example.marcuraexchangeratebackend.analytics.api.CurrencyUsageSummary
 import com.example.marcuraexchangeratebackend.analytics.api.DailyUsageEntry;
 import com.example.marcuraexchangeratebackend.analytics.persistence.CurrencyUsageDailyEntity;
 import com.example.marcuraexchangeratebackend.analytics.persistence.CurrencyUsageDailyRepository;
+import com.example.marcuraexchangeratebackend.analytics.persistence.CurrencyUsageSummaryProjection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,7 +12,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -44,12 +44,12 @@ class AnalyticsServiceTest {
         // Given
         OffsetDateTime now = OffsetDateTime.now();
 
-        Object[] eurData = {"EUR", 142L, now.minusDays(1)};
-        Object[] usdData = {"USD", 98L, now.minusDays(2)};
-        Object[] plnData = {"PLN", 37L, now.minusDays(3)};
-
         when(usageRepository.findUsageSummaryGroupedByCurrency())
-                .thenReturn(Arrays.asList(eurData, usdData, plnData));
+                .thenReturn(Arrays.asList(
+                        mockSummaryProjection("EUR", 142L, now.minusDays(1)),
+                        mockSummaryProjection("USD", 98L, now.minusDays(2)),
+                        mockSummaryProjection("PLN", 37L, now.minusDays(3))
+                ));
 
         // When
         List<CurrencyUsageSummary> result = service.getTopCurrencies();
@@ -86,14 +86,10 @@ class AnalyticsServiceTest {
         // Given
         OffsetDateTime now = OffsetDateTime.now();
 
-        // PostgreSQL may return BigInteger for SUM() aggregates
-        Object[] eurData = {"EUR", BigInteger.valueOf(999999999L), now};
-        
-        List<Object[]> resultList = new ArrayList<>();
-        resultList.add(eurData);
-
         when(usageRepository.findUsageSummaryGroupedByCurrency())
-                .thenReturn(resultList);
+                .thenReturn(Arrays.asList(
+                        mockSummaryProjection("EUR", 999999999L, now)
+                ));
 
         // When
         List<CurrencyUsageSummary> result = service.getTopCurrencies();
@@ -154,11 +150,11 @@ class AnalyticsServiceTest {
         OffsetDateTime eurLastQueried = OffsetDateTime.now().minusDays(1);
         OffsetDateTime usdLastQueried = OffsetDateTime.now().minusDays(2);
 
-        Object[] eurData = {"EUR", 100L, eurLastQueried};
-        Object[] usdData = {"USD", 50L, usdLastQueried};
-
         when(usageRepository.findUsageSummaryGroupedByCurrency())
-                .thenReturn(Arrays.asList(eurData, usdData));
+                .thenReturn(Arrays.asList(
+                        mockSummaryProjection("EUR", 100L, eurLastQueried),
+                        mockSummaryProjection("USD", 50L, usdLastQueried)
+                ));
 
         // When
         List<CurrencyUsageSummary> result = service.getTopCurrencies();
@@ -181,5 +177,29 @@ class AnalyticsServiceTest {
         );
         entity.setQueryCount(queryCount);
         return entity;
+    }
+
+    private CurrencyUsageSummaryProjection mockSummaryProjection(
+            String currencyCode,
+            Long totalCount,
+            OffsetDateTime lastQueried
+    ) {
+        return new CurrencyUsageSummaryProjection() {
+            @Override
+            public String getCurrencyCode() {
+                return currencyCode;
+            }
+
+            @Override
+            public Long getTotalCount() {
+                return totalCount;
+            }
+
+            @Override
+            public String getLastQueried() {
+                // Return as ISO 8601 string, matching PostgreSQL CAST output
+                return lastQueried.toString();
+            }
+        };
     }
 }
