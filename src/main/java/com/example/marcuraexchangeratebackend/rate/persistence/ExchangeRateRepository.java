@@ -224,4 +224,26 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRateEntity
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate
     );
+
+    /**
+     * Find all distinct currency codes from the latest available snapshot.
+     * <p>
+     * Returns all unique currency codes (including base currencies) from the most recent rate_date,
+     * sorted alphabetically.
+     * <p>
+     * Uses a subquery to find MAX(rate_date) and retrieve currencies in a single efficient query.
+     *
+     * @return sorted list of distinct currency codes, empty if no rates exist
+     */
+    @Query(value = """
+            SELECT DISTINCT currency_code
+            FROM exchange_rate
+            WHERE rate_date = (SELECT MAX(rate_date) FROM exchange_rate)
+            UNION
+            SELECT DISTINCT base_currency
+            FROM exchange_rate
+            WHERE rate_date = (SELECT MAX(rate_date) FROM exchange_rate)
+            ORDER BY 1
+            """, nativeQuery = true)
+    List<String> findDistinctCurrenciesFromLatestSnapshot();
 }
